@@ -204,9 +204,9 @@ To delete the database, uninstall the add-on with the "Also remove add-on data" 
 [![DONAT.stream](https://img.shields.io/badge/DONATE.steam-fc0?style=for-the-badge&logo=heart&logoColor=white)](https://donate.stream/donate_6a8404d5ea133)  
 
 ![USDT](https://img.shields.io/badge/USDT-26A17B?style=for-the-badge&logo=tether&logoColor=white)  
-TRC-20: <kbd>TQrwpY2LWF96YBbBSZZawRqQ6j9K4PzPQo</kbd>   
-ETHEREUM: <kbd>0x963798c6219b4df6442192be1c89a8b852cc4830</kbd>  
-POLYGON: <kbd>0x8051a1cf7a3b41221d723f7eae77d59d14fb275b</kbd>  
-BEP-20: <kbd>0x2a1581bcbd2dc64b9d0f494c636d1d5dacb898e6</kbd>  
-TON: <kbd>EQBetln-nWakoK3LaTOn8l8oqnhNZgbVMHq_neSPPA6tS6nS</kbd>  
+TRC-20 — TQrwpY2LWF96YBbBSZZawRqQ6j9K4PzPQo   
+ETHEREUM — 0x963798c6219b4df6442192be1c89a8b852cc4830  
+POLYGON — 0x8051a1cf7a3b41221d723f7eae77d59d14fb275b  
+BEP-20 — 0x2a1581bcbd2dc64b9d0f494c636d1d5dacb898e6  
+TON — EQBetln-nWakoK3LaTOn8l8oqnhNZgbVMHq_neSPPA6tS6nS  
 
