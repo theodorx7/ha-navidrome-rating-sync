@@ -1,0 +1,1 @@
+# Navidrome Rating Sync package
