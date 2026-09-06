@@ -10,7 +10,7 @@
   <a href="#donate"><img src="https://img.shields.io/static/v1?label=DONATE&message=USDT%20&labelColor=555&color=26A17B&style=for-the-badge" alt="DONATE USDT"></a> &thinsp; <a href="https://donate.stream/donate_6a8404d5ea133"><img src="https://img.shields.io/badge/DONATE.steam-fc0?style=for-the-badge&logo=heart&logoColor=white" alt="DONAT.stream"></a>
 </div>
 
-[English](https://github.com/theodorx7/ha-subsonic-rating-sync/blob/main/README.md) | [Russian](https://github.com/theodorx7/ha-subsonic-rating-sync/blob/main/README_RU.md)
+[English](https://github.com/theodorx7/ha-navidrome-rating-sync/blob/main/README.md) | [Russian](https://github.com/theodorx7/ha-navidrome-rating-sync/blob/main/README_RU.md)
 
 An application for automatically synchronizing 1-5 star ratings and likes between audio files and a Navidrome server (Subsonic/OpenSonic API).
 
@@ -75,11 +75,11 @@ The app has only been tested with Navidrome v0.63.2. In theory, synchronization 
 ## Installation
 ### Click the button
 [![Add repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](
-https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https://github.com/theodorx7/ha-subsonic-rating-sync/
+https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https://github.com/theodorx7/ha-navidrome-rating-sync/
 )
 ### Or follow the manual steps
 1. Navigate in your Home Assistant frontend to <kbd>Settings</kbd> → <kbd>Apps</kbd> → <kbd>Install App</kbd> (bottom right).
-2. Click the 3-dots menu at upper right <kbd>⋮</kbd> → <kbd>Repositories</kbd> and add this repository's URL: [https://github.com/theodorx7/ha-subsonic-rating-sync/](https://github.com/theodorx7/ha-subsonic-rating-sync)
+2. Click the 3-dots menu at upper right <kbd>⋮</kbd> → <kbd>Repositories</kbd> and add this repository's URL: [https://github.com/theodorx7/ha-navidrome-rating-sync/](https://github.com/theodorx7/ha-navidrome-rating-sync)
 3. Refresh the page and find the "Navidrome Rating Sync" app.
 
 
@@ -222,6 +222,6 @@ BEP-20: <kbd>0x2a1581bcbd2dc64b9d0f494c636d1d5dacb898e6</kbd>
 TON: <kbd>EQBetln-nWakoK3LaTOn8l8oqnhNZgbVMHq_neSPPA6tS6nS</kbd>  
 
 <br/>
-<a href="https://github.com/theodorx7/ha-subsonic-rating-sync/">
-  <img align="right" alt="Hits" src="https://hits.sh/github.com/theodorx7/ha-subsonic-rating-sync.svg?style=for-the-badge&color=555555">
+<a href="https://github.com/theodorx7/ha-navidrome-rating-sync/">
+  <img align="right" alt="Hits" src="https://hits.sh/github.com/theodorx7/ha-navidrome-rating-sync.svg?style=for-the-badge&color=555555">
 </a>
