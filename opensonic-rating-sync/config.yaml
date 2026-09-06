@@ -2,7 +2,7 @@ name: "Navidrome Rating Sync"
 version: "1.0.0"
 slug: "navidrome-rating-sync"
 description: "Syncing 5-star ratings and favorites (LOVE RATING) between audio files and Navidrome. Supported sync modes: two-way, one-way (Files → Navidrome / Navidrome → Files)."
-url: "https://github.com/theodorx7/ha-subsonic-rating-sync"
+url: "https://github.com/theodorx7/ha-navidrome-rating-sync"
 arch:
   - aarch64
   - amd64
