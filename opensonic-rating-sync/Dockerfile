@@ -19,7 +19,7 @@ LABEL \
     io.hass.version="1.0.0" \
     org.opencontainers.image.title="Home Assistant App: Navidrome Rating Sync" \
     org.opencontainers.image.description="Syncing 5-star ratings and favorites (LOVE RATING) between audio files and Navidrome. Supported sync modes: two-way, one-way (Files → Navidrome / Navidrome → Files)." \
-    org.opencontainers.image.source="https://github.com/theodorx7/ha-subsonic-rating-sync" \
+    org.opencontainers.image.source="https://github.com/theodorx7/ha-navidrome-rating-sync" \
     org.opencontainers.image.licenses="MIT"
 
 CMD ["/run.sh"]
