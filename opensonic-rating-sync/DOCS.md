@@ -7,10 +7,10 @@
 <h2 align="left">Home Assistant App: Navidrome Rating Sync</h2>
 
 <div align="right">
-  <a href="https://github.com/theodorx7/ha-subsonic-rating-sync#donate"><img src="https://img.shields.io/static/v1?label=DONATE&message=USDT%20&labelColor=555&color=26A17B&style=for-the-badge" alt="DONATE USDT"></a> &thinsp; <a href="https://donate.stream/donate_6a8404d5ea133"><img src="https://img.shields.io/badge/DONATE.steam-fc0?style=for-the-badge&logo=heart&logoColor=white" alt="DONAT.stream"></a>
+  <a href="https://github.com/theodorx7/ha-navidrome-rating-sync#donate"><img src="https://img.shields.io/static/v1?label=DONATE&message=USDT%20&labelColor=555&color=26A17B&style=for-the-badge" alt="DONATE USDT"></a> &thinsp; <a href="https://donate.stream/donate_6a8404d5ea133"><img src="https://img.shields.io/badge/DONATE.steam-fc0?style=for-the-badge&logo=heart&logoColor=white" alt="DONAT.stream"></a>
 </div>
 
-[English](https://github.com/theodorx7/ha-subsonic-rating-sync/blob/main/README.md) | [Russian](https://github.com/theodorx7/ha-subsonic-rating-sync/blob/main/README_RU.md)
+[English](https://github.com/theodorx7/ha-navidrome-rating-sync/blob/main/README.md) | [Russian](https://github.com/theodorx7/ha-navidrome-rating-sync/blob/main/README_RU.md)
 
 
 An application for automatically synchronizing 1-5 star ratings and likes between audio files and a Navidrome server (Subsonic/OpenSonic API).
