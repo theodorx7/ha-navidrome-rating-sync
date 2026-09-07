@@ -53,7 +53,7 @@ Audio file tags do not store the date a rating was applied or changed. Navidrome
 
 - If a rating changed on one side only, it is copied to the other.
 
-- If ratings changed on both sides between sync cycles (a conflict), the priority source selected in the app settings (Server wins / File wins) takes precedence. Therefore, a more frequent sync interval leads to a more accurate detection of the changed side.
+- If ratings have changed on both sides between two syncs (a conflict occurs), the priority source selected in the app settings (Server wins / File wins) prevails. Therefore, the more frequently synchronization runs, the more accurately the modified side is determined. However, for most users without specific workflows, running the sync once a day at night is sufficient.
 
 - The state snapshot is then updated in the add-on's database, becoming the new baseline.
 
@@ -73,18 +73,18 @@ The app has only been tested with Navidrome v0.63.2. In theory, synchronization 
 
 
 ## Installation
-### Click the button
+### Click the Button
 [![Add repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](
 https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https://github.com/theodorx7/ha-navidrome-rating-sync/
 )
-### Or follow the manual steps
+### Or Follow the Manual Steps
 1. Navigate in your Home Assistant frontend to <kbd>Settings</kbd> → <kbd>Apps</kbd> → <kbd>Install App</kbd> (bottom right).
 2. Click the 3-dots menu at upper right <kbd>⋮</kbd> → <kbd>Repositories</kbd> and add this repository's URL: [https://github.com/theodorx7/ha-navidrome-rating-sync/](https://github.com/theodorx7/ha-navidrome-rating-sync)
 3. Refresh the page and find the "Navidrome Rating Sync" app.
 
 
 
-## Configuration and Running
+## Configuration and First Launch
 - Provide the username/password of the user whose ratings should be synced. Navidrome stores ratings and likes per user.
 
 - Select the sync mode, schedule, and enable Dry Run mode (highly recommended for the first run).
