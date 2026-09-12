@@ -10,6 +10,7 @@ startup: application
 boot: auto
 init: false
 stdin: true
+udev: true
 map:
   - media:rw
   - share:rw
