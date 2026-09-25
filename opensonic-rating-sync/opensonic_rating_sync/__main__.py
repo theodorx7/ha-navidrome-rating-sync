@@ -1,6 +1,5 @@
 import json
 import os
-import time
 import datetime
 from pathlib import Path
 
@@ -33,17 +32,19 @@ def _map(field: str, value: str) -> str:
     """Directly maps UI string to internal technical name."""
     return UI_TO_INTERNAL[field][value]
 
+def _parse_daily_time(target_time: str) -> datetime.time:
+    """Normalizes 'H[:MM[:SS]]' into a time object: missing or unreadable units are 0, out-of-range values wrap."""
+    units = (target_time.split(":") + ["0", "0"])[:3]
+    parts = [int(unit) % limit if unit.isdigit() else 0 for unit, limit in zip(units, (24, 60, 60))]
+    return datetime.time(*parts)
+
 def setup_logging(debug: bool):
     """Initializes the logger for HA App. Output goes to stdout."""
     level = logging.DEBUG if debug else logging.INFO
     
     logger = logging.getLogger()
     logger.setLevel(level)
-    
-    if logger.handlers:
-        for handler in logger.handlers:
-            logger.removeHandler(handler)
-            
+
     console_handler = logging.StreamHandler(sys.stdout)
     
     class BashioFormatter(logging.Formatter):
@@ -74,14 +75,14 @@ def load_config() -> dict:
     return {
         "server_protocol":      raw["server_protocol"],
         "server_host":          str(raw.get("server_host") or "").strip(),
-        "server_port":          int(raw.get("server_port") or 443),
+        "server_port":          int(raw.get("server_port") or (80 if raw["server_protocol"] == "http" else 443)),
         "user":                 raw["user"],
         "password":             raw["password"],
         "music_folder_id":      raw["music_folder_id"],
         "sync_mode":            _map("sync_mode",            raw["sync_mode"]),
         "conflict_resolution":  _map("conflict_resolution",  raw["conflict_resolution"]),
         "sync_schedule_type":   _map("sync_schedule_type",   raw["sync_schedule_type"]),
-        "sync_interval_hours":  int(raw.get("sync_interval_hours") or 1),
+        "sync_interval_hours":  max(1, int(raw.get("sync_interval_hours") or 1)),
         "sync_time":            str(raw.get("sync_time") or "").strip(),
         "dry_run":              bool(raw["dry_run"]),
         "sync_ratings":         bool(raw["sync_ratings"]),
@@ -127,7 +128,7 @@ def main() -> None:
     stdin_thread.start()
     
     if config["debug"]:
-        safe = {k: ("***" if k in ("password", "api_key") else v)
+        safe = {k: ("***" if k in "password" else v)
                 for k, v in config.items()}
         logger.debug("Configuration loaded: %s", safe)
     else:
@@ -166,9 +167,6 @@ def main() -> None:
             manual_trigger.clear()
             continue
 
-        next_time_str = ""
-        sleep_seconds = 0
-
         if schedule_type == "interval":
             sleep_hours = config["sync_interval_hours"]
             sleep_seconds = sleep_hours * 3600
@@ -176,16 +174,15 @@ def main() -> None:
             next_time_str = next_run.strftime("%Y-%m-%d %H:%M:%S")
         
         elif schedule_type == "daily":
-            target_time = config["sync_time"]
+            parsed_time = _parse_daily_time(config["sync_time"])
             now = datetime.datetime.now()
-            # Support for "03:00" and "03:00:00" formats
-            fmt = "%H:%M:%S" if len(target_time) == 8 else "%H:%M"
-            target = datetime.datetime.strptime(target_time, fmt).replace(
-                year=now.year, month=now.month, day=now.day
+            target = now.replace(
+                hour=parsed_time.hour, minute=parsed_time.minute,
+                second=parsed_time.second, microsecond=0
             )
             
             # If the target time has already passed today, we will reschedule it for tomorrow.
-            if target < now:
+            if target <= now:
                 target += datetime.timedelta(days=1)
             
             sleep_seconds = int((target - now).total_seconds())
