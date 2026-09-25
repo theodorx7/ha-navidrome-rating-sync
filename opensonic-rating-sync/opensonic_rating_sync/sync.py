@@ -127,8 +127,14 @@ class SyncAgent:
 
         if srv_changed and not f_changed: return 'server', srv_mtime
         if not srv_changed and f_changed: return 'file', f_mtime
-        
-        if f_mtime == 0 and srv_mtime == 0: return 'unresolved', 0
+
+        if f_mtime == 0 and srv_mtime == 0:
+            # No recorded history (e.g. states absorbed by the old +/-0.5 tolerance):
+            # a side without any rating cannot win; two different ratings stay unresolved.
+            if f_val != 0 and srv_val != 0: return 'unresolved', 0
+            if srv_val != 0: return 'server', srv_mtime
+            if f_val != 0: return 'file', f_mtime
+
         if f_mtime > srv_mtime: return 'file', f_mtime
         if srv_mtime > f_mtime: return 'server', srv_mtime
         return 'server' if self.config['conflict_resolution'] == 'server_wins' else 'file', max(srv_mtime, f_mtime)
@@ -136,14 +142,15 @@ class SyncAgent:
     def _resolve_rating_conflict(self, song_id, song, file_path, f_rating_internal, srv_rating, db_state, is_new_file, now_time):
         prefix = "[DRY-RUN] " if self.config['dry_run'] else ""
         f_rating_5_scale = f_rating_internal / 2.0
-        if abs(f_rating_5_scale - srv_rating) <= 0.5:
+        # The server holds whole stars only: compare its value with the file's rating rounded UP.
+        f_rating_os = math.ceil(f_rating_5_scale)
+        if f_rating_os == srv_rating:
             t_rate_os = srv_rating
             t_rate_internal = f_rating_internal or (srv_rating * 2)
             w_file_rate, w_srv_rate = False, False
             final_f_rate_mtime = db_state['file_rating_mtime']
             final_s_rate_mtime = db_state['server_rating_mtime']
         else:
-            f_rating_os = math.ceil(f_rating_internal / 2)
             db_srv_rating = db_state['server_rating']
             db_f_rating = db_state['file_rating']
             
