@@ -12,10 +12,10 @@ from mutagen.asf import ASF, ASFDWordAttribute, ASFUnicodeAttribute
 
 logger = logging.getLogger(__name__)
 
-_PRIMARY_MP3_RATING_MAP = {0: 0, 1: 13, 2: 1, 3: 54, 4: 64, 5: 118, 6: 128, 7: 186, 8: 196, 9: 242, 10: 255}
-_ALTERNATIVE_MP3_RATING_MAP = {0: 0, 2: 1, 4: 64, 6: 128, 8: 196, 10: 255}
-_PICARD_MP3_RATING_MAP = {0: 0, 2: 51, 4: 102, 6: 153, 8: 204, 10: 255}
-_WMA_RATING_WRITE_MAP = {0: 0, 1: 1, 2: 1, 3: 25, 4: 25, 5: 50, 6: 50, 7: 75, 8: 75, 9: 99, 10: 99}
+_PRIMARY_MP3_RATING_MAP = {1: 13, 2: 1, 3: 54, 4: 64, 5: 118, 6: 128, 7: 186, 8: 196, 9: 242, 10: 255}
+_ALTERNATIVE_MP3_RATING_MAP = {2: 1, 4: 64, 6: 128, 8: 196, 10: 255}
+_PICARD_MP3_RATING_MAP = {2: 51, 4: 102, 6: 153, 8: 204, 10: 255}
+_WMA_RATING_WRITE_MAP = {1: 1, 2: 1, 3: 25, 4: 25, 5: 50, 6: 50, 7: 75, 8: 75, 9: 99, 10: 99}
 _WMA_RATING_READ_MAP = {1: 2, 25: 4, 50: 6, 75: 8, 99: 10}
 _KNOWN_PRIMARY_RATING_PLAYERS = ["MusicBee", "no@email"]
 _RATING_EMAIL = "no@email"
@@ -85,8 +85,8 @@ def _popm_rating_to_internal(popm_rating, email):
     return min(10, max(1, round((popm_rating / 255) * 9 + 1)))
 
 def _internal_rating_to_popm(internal_rating):
-    if internal_rating == 0 or internal_rating is None: return 0
-    return _PRIMARY_MP3_RATING_MAP.get(internal_rating, 0)
+    if internal_rating == 0: return 0
+    return _PRIMARY_MP3_RATING_MAP[internal_rating]
 
 # --- ID3 STRATEGIES (MP3 / AIFF /WAV ) ---
 class ID3Handler(RatingHandler):
@@ -138,7 +138,9 @@ class ID3Handler(RatingHandler):
     def write_tags(self, file_path: str, rating: int | None, starred: bool | None, atomic_save: bool) -> tuple:
         audio = self._load(file_path)
         if audio is None: return None, None
-        if audio.tags is None: audio.tags = ID3()
+        # add_tags() creates the container-specific ID3 subclass (_WaveID3/_IFFID3/ID3);
+        # a plain ID3 assigned directly would save MP3-style and corrupt WAV/AIFF RIFF chunks.
+        if audio.tags is None: audio.add_tags()
 
         r_status = None
         s_status = None
