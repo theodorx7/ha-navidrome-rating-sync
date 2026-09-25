@@ -16,7 +16,7 @@ _PRIMARY_MP3_RATING_MAP = {0: 0, 1: 13, 2: 1, 3: 54, 4: 64, 5: 118, 6: 128, 7: 1
 _ALTERNATIVE_MP3_RATING_MAP = {0: 0, 2: 1, 4: 64, 6: 128, 8: 196, 10: 255}
 _PICARD_MP3_RATING_MAP = {0: 0, 2: 51, 4: 102, 6: 153, 8: 204, 10: 255}
 _WMA_RATING_WRITE_MAP = {0: 0, 1: 1, 2: 1, 3: 25, 4: 25, 5: 50, 6: 50, 7: 75, 8: 75, 9: 99, 10: 99}
-_WMA_RATING_READ_MAP = {0: 0, 1: 2, 25: 4, 50: 6, 75: 8, 99: 10}
+_WMA_RATING_READ_MAP = {1: 2, 25: 4, 50: 6, 75: 8, 99: 10}
 _KNOWN_PRIMARY_RATING_PLAYERS = ["MusicBee", "no@email"]
 _RATING_EMAIL = "no@email"
 # --- Like tags in MusicBee format ---
@@ -25,7 +25,6 @@ _LIKE_TAG_ASF = "musicbee/LOVE RATING"
 _LIKE_TAG_MP4 = "----:com.apple.iTunes:LOVERATING"
 _LIKE_VALUE_ON = "L"
 _LIKE_VALUE_OFF = "0"
-_LIKE_VALUE_BAN = "B"
 
 # --- BASE STRATEGY CLASS ---
 class RatingHandler:
@@ -71,8 +70,8 @@ class RatingHandler:
                 os.fsync(f.fileno())
 
 # --- POPM CONVERSIONS ---
-def _popm_rating_to_internal(popm_rating, email=None):
-    if popm_rating == 0 or popm_rating is None: return None
+def _popm_rating_to_internal(popm_rating, email):
+    if popm_rating == 0: return None
     if email in _KNOWN_PRIMARY_RATING_PLAYERS:
         for internal_rating, popm_value in _PRIMARY_MP3_RATING_MAP.items():
             if popm_rating == popm_value: return internal_rating
@@ -221,7 +220,8 @@ class XiphHandler(RatingHandler):
                      # 3. Using float() to read the decimal, as int() cannot do this
                      xiph_rating = float(raw_str.replace(',', '.').strip())
                      if xiph_rating > 0:
-                         rating = max(1, min(10, xiph_rating * 2 if xiph_rating <= 10 else round(xiph_rating / 10)))
+                         # 10 is 0.5 stars on the 0-100 scale (MusicBee/own writes), not 5 on a 0-5 scale.
+                         rating = max(1, min(10, xiph_rating * 2 if xiph_rating < 10 else round(xiph_rating / 10)))
                 except Exception as e:
                     logger.error(f"Xiph rating parse err ({file_path}): {e} | Raw: {rating_raw}")
                     rating = None
@@ -241,7 +241,8 @@ class XiphHandler(RatingHandler):
 
     def write_tags(self, file_path: str, rating: int | None, starred: bool | None, atomic_save: bool) -> tuple:
         audio = self._load(file_path)
-        if audio:
+        # A tagless file object is falsy (FileType.__len__): identity check keeps it writable.
+        if audio is not None:
             if audio.tags is None:
                 audio.add_tags()
 
@@ -419,7 +420,7 @@ class ASFHandler(RatingHandler):
         if rating is not None:
             try:
                 if rating > 0:
-                    wma_rating = _WMA_RATING_WRITE_MAP.get(rating, 0)
+                    wma_rating = _WMA_RATING_WRITE_MAP[rating]
                     audio.tags["WM/SharedUserRating"] = ASFDWordAttribute(wma_rating)
                 else:
                     if "WM/SharedUserRating" in audio.tags:
