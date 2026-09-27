@@ -7,12 +7,12 @@
 <h2 align="left">Home Assistant App: Navidrome Rating Sync</h2>
 
 <div align="right">
-  <a href="#donate"><img src="https://img.shields.io/static/v1?label=DONATE&message=USDT%20&labelColor=555&color=26A17B&style=for-the-badge" alt="DONATE USDT"></a> &thinsp; <a href="https://donate.stream/donate_6a8404d5ea133"><img src="https://img.shields.io/badge/DONATE.steam-fc0?style=for-the-badge&logo=heart&logoColor=white" alt="DONAT.stream"></a>
+  <a href="#donate"><img src="https://img.shields.io/static/v1?label=DONATE&message=USDT%20&labelColor=555&color=26A17B&style=for-the-badge" alt="DONATE USDT"></a> &thinsp; <a href="https://donate.stream/donate_6a8404d5ea133"><img src="https://img.shields.io/badge/DONAT.stream-fc0?style=for-the-badge&logo=heart&logoColor=white" alt="DONAT.stream"></a>
 </div>
 
 [English](https://github.com/theodorx7/ha-navidrome-rating-sync/blob/main/README.md) | [Russian](https://github.com/theodorx7/ha-navidrome-rating-sync/blob/main/README_RU.md)
 
-An application for automatically synchronizing 1-5 star ratings and likes between audio files and a Navidrome server (Subsonic/OpenSonic API).
+An application for automatically synchronizing 1-5 star ratings and likes between audio files and a Navidrome server (Subsonic/OpenSubsonic API).
 
 ## Features
 - Sync modes:
@@ -29,7 +29,7 @@ An application for automatically synchronizing 1-5 star ratings and likes betwee
 
 - Atomic writes (optional): Copy-Save-Replace mode protects audio files from corruption during simultaneous writes by multiple users/processes if your media library is on network storage (SMB/NFS). Atomic writes are disabled by default to prevent SSD wear.
 
-- Power failure protection: changes are flushed directly to disk, bypassing the OS buffer, minimizing data loss during a sudden power outage.
+- Crash resilience: Changes are flushed directly to disk (fsync) without lingering in the system buffer, minimizing data loss during unexpected power cuts.
 
 - Independent processing of ratings and likes: you can choose to sync only likes or only ratings. If both are enabled, only the changed data is updated (e.g., changing a like won't rewrite the rating tag in the file).
 
@@ -55,7 +55,7 @@ Audio file tags do not store the date a rating was applied or changed. Navidrome
 
 - If ratings have changed on both sides between two syncs (a conflict occurs), the priority source selected in the app settings (Server wins / File wins) prevails. Therefore, the more frequently synchronization runs, the more accurately the modified side is determined. However, for most users without specific workflows, running the sync once a day at night is sufficient.
 
-- The state snapshot is then updated in the add-on's database, becoming the new baseline.
+- The state snapshot is then updated in the add-on's database (only if it actually changed), becoming the new baseline.
 
 
 
@@ -135,7 +135,7 @@ icon: mdi:sync-circle
 
 - **First run in two-way mode with an empty database:** If a track's rating differs between the file and the server (and both are NON-zero), the conflict is not resolved automatically—the discrepancy is simply logged. You can resolve this by manually changing the rating on one side, or by temporarily running a one-way sync to overwrite data on the receiving side.
 
-- **First run in one-way sync mode:** All ratings on the receiving side will be overwritten by the source ratings.
+- **First run in one-way sync mode:** All ratings and likes on the receiving side will be overwritten by the source ratings.
 
 - **One-way sync is not a strict mirror:** New changes from the source are transferred to the receiver. However, if you manually change a rating on the receiving side later, it will not be forcibly overwritten by the old value from the source. It will only be overwritten if the rating is updated in the source again.
 
@@ -148,9 +148,9 @@ icon: mdi:sync-circle
 - **Single-user ratings and likes:** The app supports 1 user and 1 music library in Navidrome. Only one rating is stored in file tags.
 
 - **Fractional stars:**
-    - Navidrome only understands whole numbers, so when sending a rating to the server (e.g., 3.5 stars), the value is always rounded up to the nearest whole star (4).
-    - In files, the fractional rating is preserved until it is overwritten by a new value from the server.
-    - When comparing, a difference of 0.5 stars is tolerated. A discrepancy within half a star (e.g., 3.5 in the file and 4 on the server) is considered a match, and sync is skipped.
+    - Navidrome only supports integer ratings. When saving a rating to the server (e.g., 3.5 stars), the value is always rounded up to the nearest whole star.
+    - During comparison, the file's rating is rounded up to the nearest whole star before checking against the server. As a result, a discrepancy like "3.5 in file" versus "4 on server" is treated as a match, so no sync is triggered.
+    - Fractional ratings in files are preserved until they are overwritten by a new rating from the server.
 
 
 
@@ -198,7 +198,7 @@ A run command received while a sync loop is already executing will be ignored. T
 ### App Database
 Track state snapshots are stored in the app's database. Restarting or updating the add-on does not affect the database.  
 However, a database reset might be necessary if you drastically change the configuration (e.g., changing the user, library path, etc.).  
-To delete the database, uninstall the add-on with the "Also remove add-on data" option checked, and reinstall it.
+To delete the database, uninstall the add-on with the "Also remove app data" option checked, and reinstall it.
 
 
 
@@ -212,7 +212,7 @@ To delete the database, uninstall the add-on with the "Also remove add-on data" 
 
 <a name="donate"></a>
 ## ❤️ Support the project
-[![DONAT.stream](https://img.shields.io/badge/DONATE.steam-fc0?style=for-the-badge&logo=heart&logoColor=white)](https://donate.stream/donate_6a8404d5ea133)  
+[![DONAT.stream](https://img.shields.io/badge/DONAT.stream-fc0?style=for-the-badge&logo=heart&logoColor=white)](https://donate.stream/donate_6a8404d5ea133)  
 
 ![USDT](https://img.shields.io/badge/USDT-26A17B?style=for-the-badge&logo=tether&logoColor=white)  
 TRC-20: <kbd>TQrwpY2LWF96YBbBSZZawRqQ6j9K4PzPQo</kbd>   
