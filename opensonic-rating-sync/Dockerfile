@@ -16,7 +16,7 @@ RUN chmod a+x /run.sh
 LABEL \
     io.hass.type="app" \
     io.hass.arch="aarch64|amd64" \
-    io.hass.version="1.0.0" \
+    io.hass.version="${BUILD_VERSION}" \
     io.hass.name="Navidrome Rating Sync" \
     io.hass.description="Syncing 5-star ratings and favorites (LOVE RATING) between audio files and Navidrome. Supported sync modes: two-way, one-way (Files → Navidrome / Navidrome → Files)." \
     io.hass.url="https://github.com/theodorx7/ha-navidrome-rating-sync" \
