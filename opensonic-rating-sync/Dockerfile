@@ -18,10 +18,10 @@ LABEL \
     io.hass.arch="aarch64|amd64" \
     io.hass.version="${BUILD_VERSION}" \
     io.hass.name="Navidrome Rating Sync" \
-    io.hass.description="Syncing 5-star ratings and favorites (LOVE RATING) between audio files and Navidrome. Supported sync modes: two-way, one-way (Files → Navidrome / Navidrome → Files)." \
+    io.hass.description="Syncing 5-star ratings and favorites (MusicBee LOVE RATING) between audio files and Navidrome. Supported sync modes: two-way, one-way (Files → Navidrome / Navidrome → Files)." \
     io.hass.url="https://github.com/theodorx7/ha-navidrome-rating-sync" \
     org.opencontainers.image.title="Home Assistant App: Navidrome Rating Sync" \
-    org.opencontainers.image.description="Syncing 5-star ratings and favorites (LOVE RATING) between audio files and Navidrome. Supported sync modes: two-way, one-way (Files → Navidrome / Navidrome → Files)." \
+    org.opencontainers.image.description="Syncing 5-star ratings and favorites (MusicBee LOVE RATING) between audio files and Navidrome. Supported sync modes: two-way, one-way (Files → Navidrome / Navidrome → Files)." \
     org.opencontainers.image.source="https://github.com/theodorx7/ha-navidrome-rating-sync" \
     org.opencontainers.image.licenses="MIT"
 
