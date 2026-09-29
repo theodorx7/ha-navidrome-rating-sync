@@ -8,19 +8,17 @@ configuration:
   server_port:
     name: Port
     description: >-
-      Default for Navidrome is 4533. Can be left blank if port 80 or 443 is used.
+      Default is 4533. Leave blank if using port 80 or 443.
   user:
     name: Username
     description: >-
       Specify the account you use to rate tracks. In Navidrome, ratings are tied to a specific user.
   password:
     name: Password
-    description: >-
-      Authentication uses a token+salt scheme. The password is not transmitted in plain text.
   music_folder_id:
     name: Server library ID
     description: >-
-      For Navidrome: if there is only one library, it is usually 1. How to find the ID: open the "Libraries" section in the menu —> Open the settings for the desired library —> The number at the end of the URL (e.g., "/#/library/1").
+      For Navidrome: If you only have one library, this is usually 1. To find the ID: Open the "Libraries" section in the menu —> Open the settings for the desired library —> The number at the end of the URL (e.g., "/#/library/1").
   sync_mode:
     name: Sync direction
     description: >-
@@ -28,7 +26,7 @@ configuration:
   conflict_resolution:
     name: Conflict resolution
     description: >-
-      Applies only to two-way mode and determines the source priority (server or file) if a rating is changed in both places simultaneously and the modification times match.
+      Applies to two-way mode only. This determines which source (server or file) takes priority if a rating is changed in both places simultaneously.
   sync_schedule_type:
     name: Schedule mode
     description: >-
@@ -44,11 +42,11 @@ configuration:
   sync_ratings:
     name: Sync ratings
     description: >-
-      Star rating (values from 1 to 5).
+      Star rating.
   sync_likes:
     name: Sync likes
     description: >-
-      Likes in MusicBee format (binary favorite).
+      "Favorite" tags in MusicBee format.
   dry_run:
     name: Test sync mode (Dry-Run)
     description: >-
