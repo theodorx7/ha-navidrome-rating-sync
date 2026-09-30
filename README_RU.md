@@ -216,6 +216,8 @@ icon: mdi:sync-circle
 | Subsonic сервер недоступен | Цикл синхронизации пропускается, повтор выполняется по расписанию (если настроено) |
 
 
+<br/>
+
 <a name="donate"></a>
 ## ❤️ Поддержите проект
 [![DONAT.stream](https://img.shields.io/badge/DONAT.stream-fc0?style=for-the-badge&logo=heart&logoColor=white)](https://donate.stream/donate_6a8404d5ea133)  
