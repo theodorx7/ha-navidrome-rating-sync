@@ -85,3 +85,5 @@ ETHEREUM
 POLYGON  
 <kbd>0x8051a1cf7a3b41221d723f7eae77d59d14fb275b</kbd>    
 
+TON  
+<kbd>EQBetln-nWakoK3LaTOn8l8oqnhNZgbVMHq_neSPPA6tS6nS</kbd>    
