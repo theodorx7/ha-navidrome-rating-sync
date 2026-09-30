@@ -81,9 +81,6 @@ TRC-20
 BEP-20  
 <kbd>0x2a1581bcbd2dc64b9d0f494c636d1d5dacb898e6</kbd>    
 
-ETHEREUM  
-<kbd>0x963798c6219b4df6442192be1c89a8b852cc4830</kbd>    
-
 POLYGON  
 <kbd>0x8051a1cf7a3b41221d723f7eae77d59d14fb275b</kbd>    
 
