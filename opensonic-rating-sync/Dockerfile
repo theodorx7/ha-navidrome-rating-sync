@@ -3,7 +3,7 @@ FROM ghcr.io/home-assistant/base:latest
 RUN apk add --no-cache python3 \
     && apk add --no-cache --virtual .build-deps py3-pip \
     && pip install --no-cache-dir --break-system-packages \
-        py-opensonic==10.3.0 \
+        py-opensonic==10.4.1 \
         mutagen==1.48.1 \
     && apk del .build-deps
 
