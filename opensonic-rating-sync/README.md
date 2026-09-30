@@ -64,10 +64,12 @@ Audio file tags do not store the date a rating was applied or changed. Navidrome
 
 The app has only been tested with Navidrome v0.63.2. In theory, synchronization should work with other Subsonic servers since it uses the standard API (py-opensonic for the server library, mutagen for file tags).
 
-
+<br/>
+  
 ## SEE DOCUMENTATION TAB FOR MORE DETAILS
 
 
+<br/>
 
 ### ❤️ Support the project
 [![DONAT.stream](https://img.shields.io/badge/DONAT.stream-fc0?style=for-the-badge&logo=heart&logoColor=white)](https://donate.stream/donate_6a8404d5ea133)  
