@@ -12,11 +12,11 @@ from mutagen.asf import ASF, ASFDWordAttribute, ASFUnicodeAttribute
 
 logger = logging.getLogger(__name__)
 
-_PRIMARY_MP3_RATING_MAP = {0: 0, 1: 13, 2: 1, 3: 54, 4: 64, 5: 118, 6: 128, 7: 186, 8: 196, 9: 242, 10: 255}
-_ALTERNATIVE_MP3_RATING_MAP = {0: 0, 2: 1, 4: 64, 6: 128, 8: 196, 10: 255}
-_PICARD_MP3_RATING_MAP = {0: 0, 2: 51, 4: 102, 6: 153, 8: 204, 10: 255}
-_WMA_RATING_WRITE_MAP = {0: 0, 1: 1, 2: 1, 3: 25, 4: 25, 5: 50, 6: 50, 7: 75, 8: 75, 9: 99, 10: 99}
-_WMA_RATING_READ_MAP = {0: 0, 1: 2, 25: 4, 50: 6, 75: 8, 99: 10}
+_PRIMARY_MP3_RATING_MAP = {1: 13, 2: 1, 3: 54, 4: 64, 5: 118, 6: 128, 7: 186, 8: 196, 9: 242, 10: 255}
+_ALTERNATIVE_MP3_RATING_MAP = {2: 1, 4: 64, 6: 128, 8: 196, 10: 255}
+_PICARD_MP3_RATING_MAP = {2: 51, 4: 102, 6: 153, 8: 204, 10: 255}
+_WMA_RATING_WRITE_MAP = {1: 1, 2: 1, 3: 25, 4: 25, 5: 50, 6: 50, 7: 75, 8: 75, 9: 99, 10: 99}
+_WMA_RATING_READ_MAP = {1: 2, 25: 4, 50: 6, 75: 8, 99: 10}
 _KNOWN_PRIMARY_RATING_PLAYERS = ["MusicBee", "no@email"]
 _RATING_EMAIL = "no@email"
 # --- Like tags in MusicBee format ---
@@ -25,7 +25,9 @@ _LIKE_TAG_ASF = "musicbee/LOVE RATING"
 _LIKE_TAG_MP4 = "----:com.apple.iTunes:LOVERATING"
 _LIKE_VALUE_ON = "L"
 _LIKE_VALUE_OFF = "0"
-_LIKE_VALUE_BAN = "B"
+
+# --- Atomic save temp files (created in the target file's directory) ---
+_ATOMIC_TMP_PREFIX = ".ha_sync_tmp_"
 
 # --- BASE STRATEGY CLASS ---
 class RatingHandler:
@@ -38,7 +40,15 @@ class RatingHandler:
             # --- ATOMIC MODE (Copy-Save-Replace) ---
             # 100% protection against binary corruption during race conditions and power failures (for SMB/network).
             dir_name = os.path.dirname(file_path)
-            fd, tmp_path = tempfile.mkstemp(dir=dir_name, prefix=".ha_sync_tmp_")
+            # Remove temps left by crashed runs (killed between mkstemp and replace).
+            for name in os.listdir(dir_name):
+                if name.startswith(_ATOMIC_TMP_PREFIX):
+                    try:
+                        os.remove(os.path.join(dir_name, name))
+                        logger.info(f"Removed stale atomic-save temp: {name}")
+                    except OSError:
+                        pass  # transient (e.g. NFS); the next write retries
+            fd, tmp_path = tempfile.mkstemp(dir=dir_name, prefix=_ATOMIC_TMP_PREFIX)
             try:
                 os.close(fd)
                 # 1. Copy the entire original file to the temporary one (to transfer audio data!)
@@ -49,13 +59,21 @@ class RatingHandler:
                 # 2. Save modified tags to the temporary file (mutagen will rewrite tags in the copy without touching the audio)
                 audio.save(tmp_path)
     
-                # --- POWER LOSS PROTECTION ---
+                # --- POWER OR CONNECTION LOSS PROTECTION ---
                 # Forcibly flush OS buffers to the physical disk
                 with open(tmp_path, 'r+b') as f:
                     os.fsync(f.fileno())
     
                 # 3. Atomically replace the original file with the temporary one
                 os.replace(tmp_path, file_path)
+                try:
+                    dir_fd = os.open(dir_name, os.O_RDONLY)
+                    try:
+                        os.fsync(dir_fd)
+                    finally:
+                        os.close(dir_fd)
+                except OSError:
+                    logger.debug(f"Directory fsync unsupported on {dir_name}; rename durability is best-effort")
             except Exception:
                 # If an error occurs during the writing phase - remove the garbage
                 if os.path.exists(tmp_path):
@@ -66,13 +84,13 @@ class RatingHandler:
             # --- STANDARD WRITE MODE (In-place) ---
             audio.save(file_path)
             
-            # --- POWER LOSS PROTECTION ---
+            # --- POWER OR CONNECTION LOSS PROTECTION ---
             with open(file_path, 'r+b') as f:
                 os.fsync(f.fileno())
 
 # --- POPM CONVERSIONS ---
-def _popm_rating_to_internal(popm_rating, email=None):
-    if popm_rating == 0 or popm_rating is None: return None
+def _popm_rating_to_internal(popm_rating, email):
+    if popm_rating == 0: return None
     if email in _KNOWN_PRIMARY_RATING_PLAYERS:
         for internal_rating, popm_value in _PRIMARY_MP3_RATING_MAP.items():
             if popm_rating == popm_value: return internal_rating
@@ -86,8 +104,8 @@ def _popm_rating_to_internal(popm_rating, email=None):
     return min(10, max(1, round((popm_rating / 255) * 9 + 1)))
 
 def _internal_rating_to_popm(internal_rating):
-    if internal_rating == 0 or internal_rating is None: return 0
-    return _PRIMARY_MP3_RATING_MAP.get(internal_rating, 0)
+    if internal_rating == 0: return 0
+    return _PRIMARY_MP3_RATING_MAP[internal_rating]
 
 # --- ID3 STRATEGIES (MP3 / AIFF /WAV ) ---
 class ID3Handler(RatingHandler):
@@ -96,7 +114,7 @@ class ID3Handler(RatingHandler):
         try:
             # PROTECTION: If the file has no tags at all, initialize an empty dictionary
             audio = self._load(file_path)
-            if not audio or not audio.tags:
+            if not audio.tags:
                 return None, 0
             
             rating = None
@@ -139,7 +157,9 @@ class ID3Handler(RatingHandler):
     def write_tags(self, file_path: str, rating: int | None, starred: bool | None, atomic_save: bool) -> tuple:
         audio = self._load(file_path)
         if audio is None: return None, None
-        if audio.tags is None: audio.tags = ID3()
+        # add_tags() creates the container-specific ID3 subclass (_WaveID3/_IFFID3/ID3);
+        # a plain ID3 assigned directly would save MP3-style and corrupt WAV/AIFF RIFF chunks.
+        if audio.tags is None: audio.add_tags()
 
         r_status = None
         s_status = None
@@ -205,7 +225,7 @@ class XiphHandler(RatingHandler):
     def read_all(self, file_path: str, sync_ratings: bool, sync_likes: bool):
         try:
             audio = self._load(file_path)
-            if not audio or not audio.tags:
+            if not audio.tags:
                 return None, 0
             
             rating = None
@@ -221,7 +241,8 @@ class XiphHandler(RatingHandler):
                      # 3. Using float() to read the decimal, as int() cannot do this
                      xiph_rating = float(raw_str.replace(',', '.').strip())
                      if xiph_rating > 0:
-                         rating = max(1, min(10, xiph_rating * 2 if xiph_rating <= 10 else round(xiph_rating / 10)))
+                         # 10 is 0.5 stars on the 0-100 scale (MusicBee/own writes), not 5 on a 0-5 scale.
+                         rating = max(1, min(10, xiph_rating * 2 if xiph_rating < 10 else round(xiph_rating / 10)))
                 except Exception as e:
                     logger.error(f"Xiph rating parse err ({file_path}): {e} | Raw: {rating_raw}")
                     rating = None
@@ -241,7 +262,7 @@ class XiphHandler(RatingHandler):
 
     def write_tags(self, file_path: str, rating: int | None, starred: bool | None, atomic_save: bool) -> tuple:
         audio = self._load(file_path)
-        if audio:
+        if audio is not None:
             if audio.tags is None:
                 audio.add_tags()
 
@@ -293,7 +314,7 @@ class MP4Handler(RatingHandler):
     def read_all(self, file_path: str, sync_ratings: bool, sync_likes: bool):
         try:
             audio = self._load(file_path)
-            if not audio or not audio.tags:
+            if not audio.tags:
                 return None, 0
             
             rating = None
@@ -377,7 +398,7 @@ class ASFHandler(RatingHandler):
     def read_all(self, file_path: str, sync_ratings: bool, sync_likes: bool):
         try:
             audio = self._load(file_path)
-            if not audio or not audio.tags:
+            if not audio.tags:
                 return None, 0
             
             rating = None
@@ -419,7 +440,7 @@ class ASFHandler(RatingHandler):
         if rating is not None:
             try:
                 if rating > 0:
-                    wma_rating = _WMA_RATING_WRITE_MAP.get(rating, 0)
+                    wma_rating = _WMA_RATING_WRITE_MAP[rating]
                     audio.tags["WM/SharedUserRating"] = ASFDWordAttribute(wma_rating)
                 else:
                     if "WM/SharedUserRating" in audio.tags:
