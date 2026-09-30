@@ -3,7 +3,7 @@ import logging
 import math
 import time
 import datetime
-from .database import get_track_state, upsert_track_state
+from .database import get_track_state, upsert_track_state, get_meta, set_meta, reset_cache
 from . import ratings
 import libopensonic
 
@@ -19,7 +19,11 @@ class SyncAgent:
             host = host[8:]
         elif host.startswith('http://'):
             host = host[7:]
-        host = host.split('/')[0].split(':')[0]
+        host = host.split('/')[0]
+        if host.count(':') > 1:
+            host = f"[{host.split(']')[0].lstrip('[')}]"
+        else:
+            host = host.split(':')[0]
         base_url = f"{config['server_protocol']}://{host}"
         
         self.conn = libopensonic.Connection(
@@ -36,8 +40,8 @@ class SyncAgent:
             logger.info(f"Connected to server: {base_url}:{config['server_port']}")
         except Exception as e:
             self.conn.cleanup()
-            logger.error(f"Failed to connect to server: {base_url}:{config['server_port']}")
-            raise ConnectionError(f"Server connection failed: {base_url}:{config['server_port']}")
+            logger.error(f"Failed to connect to server: {base_url}:{config['server_port']}: {e}")
+            raise ConnectionError(f"Server connection failed: {base_url}:{config['server_port']}") from e
 
     def _track_label(self, song, file_path=None):
         """Formats a string as: Artist - Title | Filename"""
@@ -51,14 +55,25 @@ class SyncAgent:
         start_time = time.time()
         logger.info(f"Sync started in mode: {self.sync_mode}")
 
+        # Detect option changes: reset file cache when a frozen field is enabled
+        prev_ratings = get_meta('sync_ratings')
+        prev_likes = get_meta('sync_likes')
+        ratings_on = prev_ratings == 'false' and self.config['sync_ratings']
+        likes_on = prev_likes == 'false' and self.config['sync_likes']
+        if ratings_on or likes_on:
+            logger.info("Sync option enabled — resetting cache for full re-read...")
+            reset_cache(ratings_on, likes_on)
+        set_meta('sync_ratings', str(self.config['sync_ratings']).lower())
+        set_meta('sync_likes', str(self.config['sync_likes']).lower())
+
         server_songs = self._fetch_all_server_songs()
         logger.info(f"Found tracks on server: {len(server_songs)}")
-        
+
         disk_updates = 0
         server_updates = 0
         processed_count = 0
         total_tracks = len(server_songs)
-        
+
         if total_tracks > 0:
             logger.info(f"Sync is running. Scanning and processing {total_tracks} tracks...")
         
@@ -66,7 +81,7 @@ class SyncAgent:
             processed_count += 1
             if processed_count % 1000 == 0 and processed_count != total_tracks:
                 logger.info(f"Progress: {processed_count} / {total_tracks} tracks scanned...")
-            
+
             try:
                 u_file, u_server = self._process_song(song)
                 if u_file: disk_updates += 1
@@ -90,18 +105,17 @@ class SyncAgent:
         logger.info(f"      Execution time: {formatted_time}")
 
         self.conn.cleanup()
-    
+
     def _fetch_all_server_songs(self):
         songs = []
-        mf_id = self.config['music_folder_id']
         try:
+            mf_id = int(self.config['music_folder_id']) if self.config['music_folder_id'] else None
             offset = 0
             count_per_request = 500
             while True:
-                result = self.conn.search3(query="", song_count=count_per_request, song_offset=offset, music_folder_id=mf_id)
-                if not result: break
+                result = self.conn.search3(query="", song_count=count_per_request, song_offset=offset,
+                                           artist_count=0, album_count=0, music_folder_id=mf_id)
                 fetched_songs = result.song or []
-                if not fetched_songs: break
                 songs.extend(fetched_songs)
                 if len(fetched_songs) < count_per_request: break
                 offset += count_per_request
@@ -129,8 +143,12 @@ class SyncAgent:
 
         if srv_changed and not f_changed: return 'server', srv_mtime
         if not srv_changed and f_changed: return 'file', f_mtime
-        
-        if f_mtime == 0 and srv_mtime == 0: return 'unresolved', 0
+
+        if f_mtime == 0 and srv_mtime == 0:
+            if f_val != 0 and srv_val != 0: return 'unresolved', 0
+            if srv_val != 0: return 'server', srv_mtime
+            if f_val != 0: return 'file', f_mtime
+
         if f_mtime > srv_mtime: return 'file', f_mtime
         if srv_mtime > f_mtime: return 'server', srv_mtime
         return 'server' if self.config['conflict_resolution'] == 'server_wins' else 'file', max(srv_mtime, f_mtime)
@@ -138,16 +156,15 @@ class SyncAgent:
     def _resolve_rating_conflict(self, song_id, song, file_path, f_rating_internal, srv_rating, db_state, is_new_file, now_time):
         prefix = "[DRY-RUN] " if self.config['dry_run'] else ""
         f_rating_5_scale = f_rating_internal / 2.0
-        is_rating_unresolved = False
-        
-        if abs(f_rating_5_scale - srv_rating) <= 0.5:
+        # The server holds whole stars only: compare its value with the file's rating rounded UP.
+        f_rating_os = math.ceil(f_rating_5_scale)
+        if f_rating_os == srv_rating:
             t_rate_os = srv_rating
-            t_rate_internal = f_rating_internal or (srv_rating * 2)
+            t_rate_internal = f_rating_internal
             w_file_rate, w_srv_rate = False, False
             final_f_rate_mtime = db_state['file_rating_mtime']
             final_s_rate_mtime = db_state['server_rating_mtime']
         else:
-            f_rating_os = math.ceil(f_rating_internal / 2)
             db_srv_rating = db_state['server_rating']
             db_f_rating = db_state['file_rating']
             
@@ -196,15 +213,16 @@ class SyncAgent:
                 w_file_rate, w_srv_rate = False, False
                 final_f_rate_mtime = 0
                 final_s_rate_mtime = 0
-                is_rating_unresolved = True
-                
-                header_str = f"{prefix}ID {song_id} — "
-                logger.warning(f"{header_str}{self._track_label(song, file_path)}")
-                
-                indent = " " * len(header_str)
-                logger.warning(f"{indent}⚠️ Rating conflict: Server={srv_rating}★ | File={f_rating_5_scale:g}★ ")
-                
-                logger.warning("Solution: manually change the rating in one of the locations and restart the sync, or temporarily use one-way mode to force overwrite the rating on one of the sides.")
+
+                # A frozen field stays silent; the warning resumes as soon as the field is enabled.
+                if self.config['sync_ratings']:
+                    header_str = f"{prefix}ID {song_id} — "
+                    logger.warning(f"{header_str}{self._track_label(song, file_path)}")
+
+                    indent = " " * len(header_str)
+                    logger.warning(f"{indent}⚠️ Rating conflict: Server={srv_rating}★ | File={f_rating_5_scale:g}★ ")
+
+                    logger.warning("Solution: manually change the rating in one of the locations and restart the sync, or temporarily use one-way mode to force overwrite the rating on one of the sides.")
         
         if not self.config['sync_ratings']:
             w_file_rate, w_srv_rate = False, False
@@ -212,9 +230,8 @@ class SyncAgent:
             t_rate_internal = f_rating_internal
             final_f_rate_mtime = db_state['file_rating_mtime']
             final_s_rate_mtime = db_state['server_rating_mtime']
-            is_rating_unresolved = False
-            
-        return t_rate_os, t_rate_internal, w_file_rate, w_srv_rate, final_f_rate_mtime, final_s_rate_mtime, is_rating_unresolved
+
+        return t_rate_os, t_rate_internal, w_file_rate, w_srv_rate, final_f_rate_mtime, final_s_rate_mtime
 
     def _resolve_like_conflict(self, f_starred, srv_starred, srv_star_mtime_val, db_state, is_new_file, now_time):
         db_srv_star = db_state['server_starred']
@@ -227,20 +244,21 @@ class SyncAgent:
         new_s_star_mtime = srv_star_mtime_val if srv_star_changed else db_state['server_starred_mtime']
         
         if srv_starred == f_starred:
-            star_winner, win_star_mtime = 'none', max(new_s_star_mtime, new_f_star_mtime)
+            star_winner = 'none'
         elif srv_star_changed and f_star_changed:
             star_winner, win_star_mtime = ('server' if self.config['conflict_resolution'] == 'server_wins' else 'file'), now_time
         else:
             star_winner, win_star_mtime = self._resolve_lww(srv_starred, f_starred, db_srv_star, db_f_star, new_s_star_mtime, new_f_star_mtime)
         
-        if not is_new_file:
-            if self.sync_mode == 'file-to-server' and f_star_changed:
-                star_winner, win_star_mtime = 'file', new_f_star_mtime
-            elif self.sync_mode == 'server-to-file' and srv_star_changed:
-                star_winner, win_star_mtime = 'server', new_s_star_mtime
-        elif srv_starred != f_starred:
-            # One-way synchronization on first launch (empty database).
-            if self.sync_mode == 'file-to-server':
+        # One-way sync: the source side wins, but only when the values actually differ.
+        if srv_starred != f_starred:
+            if not is_new_file:
+                if self.sync_mode == 'file-to-server' and f_star_changed:
+                    star_winner, win_star_mtime = 'file', new_f_star_mtime
+                elif self.sync_mode == 'server-to-file' and srv_star_changed:
+                    star_winner, win_star_mtime = 'server', new_s_star_mtime
+            # First launch (empty database): the source state is imposed on the target.
+            elif self.sync_mode == 'file-to-server':
                 star_winner, win_star_mtime = 'file', now_time
             elif self.sync_mode == 'server-to-file':
                 star_winner, win_star_mtime = 'server', now_time
@@ -274,39 +292,25 @@ class SyncAgent:
 
     def _save_to_db(self, db_state, t_star, t_rate_internal, t_rate_os, 
                     w_file_star, w_file_rate, w_srv_star, w_srv_rate, 
-                    actual_f_rate_write, actual_f_star_write, actual_srv_write, 
+                    actual_f_rate_write, actual_f_star_write, actual_srv_rate_write, actual_srv_star_write, 
                     f_starred, f_rating_internal, srv_starred, srv_rating,
                     final_f_rate_mtime, final_s_rate_mtime, final_f_star_mtime, final_s_star_mtime,
                     current_mtime, song_id, file_path):
         
         sync_ratings = self.config['sync_ratings']
         sync_likes = self.config['sync_likes']
+        is_new_file = (db_state['file_mtime_ns'] == 0)
         
-        if w_file_rate:
-            actual_f_rate_mtime = final_f_rate_mtime if actual_f_rate_write else db_state['file_rating_mtime']
-        else:
-            actual_f_rate_mtime = final_f_rate_mtime
-            
-        if w_srv_rate:
-            actual_s_rate_mtime = final_s_rate_mtime if actual_srv_write else db_state['server_rating_mtime']
-        else:
-            actual_s_rate_mtime = final_s_rate_mtime
+        actual_f_rate_mtime = db_state['file_rating_mtime'] if (w_file_rate and not actual_f_rate_write) else final_f_rate_mtime
+        actual_s_rate_mtime = db_state['server_rating_mtime'] if (w_srv_rate and not actual_srv_rate_write) else final_s_rate_mtime
+        actual_f_star_mtime = db_state['file_starred_mtime'] if (w_file_star and not actual_f_star_write) else final_f_star_mtime
+        actual_s_star_mtime = db_state['server_starred_mtime'] if (w_srv_star and not actual_srv_star_write) else final_s_star_mtime
 
-        if w_file_star:
-            actual_f_star_mtime = final_f_star_mtime if actual_f_star_write else db_state['file_starred_mtime']
-        else:
-            actual_f_star_mtime = final_f_star_mtime
-            
-        if w_srv_star:
-            actual_s_star_mtime = final_s_star_mtime if actual_srv_write else db_state['server_starred_mtime']
-        else:
-            actual_s_star_mtime = final_s_star_mtime
+        final_f_star = (t_star if (w_file_star and actual_f_star_write) else f_starred) if sync_likes else (0 if is_new_file else db_state['file_starred'])
+        final_f_rate = (t_rate_internal if (w_file_rate and actual_f_rate_write) else f_rating_internal) if sync_ratings else (0 if is_new_file else db_state['file_rating'])
+        final_s_star = (t_star if actual_srv_star_write else srv_starred) if sync_likes else (0 if is_new_file else db_state['server_starred'])
+        final_s_rate = (t_rate_os if actual_srv_rate_write else srv_rating) if sync_ratings else (0 if is_new_file else db_state['server_rating'])
 
-        final_f_star = (t_star if (w_file_star and actual_f_star_write) else f_starred) if sync_likes else db_state['file_starred']
-        final_f_rate = (t_rate_internal if (w_file_rate and actual_f_rate_write) else f_rating_internal) if sync_ratings else db_state['file_rating']
-        final_s_star = (t_star if actual_srv_write else srv_starred) if sync_likes else db_state['server_starred']
-        final_s_rate = (t_rate_os if actual_srv_write else srv_rating) if sync_ratings else db_state['server_rating']
-        
         upsert_track_state(
             song_id=song_id, file_path=file_path, mtime_ns=current_mtime,
             f_starred=final_f_star, f_rating=final_f_rate,
@@ -323,7 +327,7 @@ class SyncAgent:
         srv_starred = 1 if song.starred else 0
         # The server provides the exact timestamp when the track was STARRED (ISO 8601). Parse it.
         # If unstarred (srv_starred == 0), the API doesn't provide an unstar date, so we use time.time().
-        if srv_starred == 1 and song.starred:
+        if srv_starred == 1:
             try:
                 srv_star_dt = datetime.datetime.fromisoformat(str(song.starred).replace('Z', '+00:00'))
                 srv_star_mtime_val = srv_star_dt.timestamp()
@@ -362,8 +366,9 @@ class SyncAgent:
             'file_rating_mtime': 0, 'server_rating_mtime': 0,
             'file_starred_mtime': 0, 'server_starred_mtime': 0
         }
-        # Read tags from disk only if the file modification time (mtime) has changed
-        if current_mtime != db_state['file_mtime_ns'] or db_state['file_mtime_ns'] == 0:
+        is_new_file = (db_state['file_mtime_ns'] == 0)
+
+        if current_mtime != db_state['file_mtime_ns'] or is_new_file:
             f_rating_internal, f_starred = ratings.get_all_ratings_from_file(
                 file_path, 
                 self.config['sync_ratings'], 
@@ -378,14 +383,12 @@ class SyncAgent:
         f_rating_internal = f_rating_internal if f_rating_internal is not None else 0
         f_starred = f_starred if f_starred is not None else 0
 
-        is_new_file = (db_state['file_mtime_ns'] == 0)
-        
         # --- LWW (LAST-WRITE-WINS) LOGIC ---
         now_time = time.time()
         prefix = "[DRY-RUN] " if self.config['dry_run'] else ""
         
         # 1. RATING
-        t_rate_os, t_rate_internal, w_file_rate, w_srv_rate, final_f_rate_mtime, final_s_rate_mtime, is_rating_unresolved = \
+        t_rate_os, t_rate_internal, w_file_rate, w_srv_rate, final_f_rate_mtime, final_s_rate_mtime = \
             self._resolve_rating_conflict(song_id, song, file_path, f_rating_internal, srv_rating, db_state, is_new_file, now_time)
         
         # 2. LIKE STATUS
@@ -412,15 +415,25 @@ class SyncAgent:
                     final_f_rate = t_rate_internal
                     final_s_rate = t_rate_os
 
-                # SYNC DISABLED (SAVE DATA TO DB ONLY)
                 if not self.config['sync_ratings']:
-                    final_f_rate = db_state['file_rating']
-                    final_s_rate = db_state['server_rating']
+                    final_f_rate = 0 if is_new_file else db_state['file_rating']
+                    final_s_rate = 0 if is_new_file else db_state['server_rating']
                 if not self.config['sync_likes']:
-                    final_f_star = db_state['file_starred']
-                    final_s_star = db_state['server_starred']
+                    final_f_star = 0 if is_new_file else db_state['file_starred']
+                    final_s_star = 0 if is_new_file else db_state['server_starred']
 
-                upsert_track_state(
+                if is_new_file or not (
+                        file_path == db_state['file_path']
+                        and current_mtime == db_state['file_mtime_ns']
+                        and final_f_star == db_state['file_starred']
+                        and final_f_rate == db_state['file_rating']
+                        and final_s_star == db_state['server_starred']
+                        and final_s_rate == db_state['server_rating']
+                        and final_f_rate_mtime == db_state['file_rating_mtime']
+                        and final_s_rate_mtime == db_state['server_rating_mtime']
+                        and final_f_star_mtime == db_state['file_starred_mtime']
+                        and final_s_star_mtime == db_state['server_starred_mtime']):
+                    upsert_track_state(
                     song_id=song_id, file_path=file_path, mtime_ns=current_mtime,
                     f_starred=final_f_star, f_rating=final_f_rate,
                     s_starred=final_s_star, s_rating=final_s_rate,
@@ -448,13 +461,14 @@ class SyncAgent:
             logger.info(f"{indent}update: FILE={like_file_str} | SERVER={like_srv_str}")
         logger.info("")
         
-        if self.config.get('dry_run', False):
+        if self.config['dry_run']:
             return write_file, write_server
 
         # Production mode (apply changes)
         actual_f_rate_write = False
         actual_f_star_write = False
-        actual_srv_write = False
+        actual_srv_rate_write = False
+        actual_srv_star_write = False
         try:
             if write_file:
                 # If the rating changed (even to 0), pass it as is. Pass None only if the rating didn't change (w_file_rate = False).
@@ -475,35 +489,26 @@ class SyncAgent:
 
             if write_server:
                 if w_srv_star:
-                    if t_star == 1 and srv_starred == 0: 
-                        resp = self.conn.star(song_id)
-                        if not resp:
-                            logger.error(f"API star ERR: {resp} (Song: {song_id})")
-                        else:
-                            actual_srv_write = True
-                    elif t_star == 0 and srv_starred == 1: 
-                        resp = self.conn.unstar(song_id)
-                        if not resp:
-                            logger.error(f"API unstar ERR: {resp} (Song: {song_id})")
-                        else:
-                            actual_srv_write = True
+                    if t_star == 1 and srv_starred == 0:
+                        self.conn.star([song_id])
+                        actual_srv_star_write = True
+                    elif t_star == 0 and srv_starred == 1:
+                        self.conn.unstar([song_id])
+                        actual_srv_star_write = True
                 if w_srv_rate:
-                    if t_rate_os != srv_rating: 
-                        resp = self.conn.set_rating(song_id, t_rate_os)
-                        if not resp:
-                            logger.error(f"API set_rating ERR: {resp} (Song: {song_id}, Rating: {t_rate_os})")
-                        else:
-                            actual_srv_write = True
+                    if t_rate_os != srv_rating:
+                        self.conn.set_rating(song_id, t_rate_os)
+                        actual_srv_rate_write = True
         except Exception as e:
             logger.error(f"Write error for track {song_id} | {self._track_label(song, file_path)}: {e}", exc_info=True)
 
         self._save_to_db(
             db_state, t_star, t_rate_internal, t_rate_os, 
             w_file_star, w_file_rate, w_srv_star, w_srv_rate, 
-            actual_f_rate_write, actual_f_star_write, actual_srv_write, 
+            actual_f_rate_write, actual_f_star_write, actual_srv_rate_write, actual_srv_star_write, 
             f_starred, f_rating_internal, srv_starred, srv_rating,
             final_f_rate_mtime, final_s_rate_mtime, final_f_star_mtime, final_s_star_mtime,
             current_mtime, song_id, file_path
         )
         
-        return (actual_f_rate_write or actual_f_star_write), actual_srv_write
+        return (actual_f_rate_write or actual_f_star_write), (actual_srv_rate_write or actual_srv_star_write)
