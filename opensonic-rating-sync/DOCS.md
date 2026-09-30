@@ -199,17 +199,17 @@ To delete the database, uninstall the add-on with the "Also remove app data" opt
 
 ![USDT](https://img.shields.io/badge/USDT-26A17B?style=for-the-badge&logo=tether&logoColor=white)  
 TRC-20  
-TQrwpY2LWF96YBbBSZZawRqQ6j9K4PzPQo  
+<kbd>TQrwpY2LWF96YBbBSZZawRqQ6j9K4PzPQo</kbd>    
 
 BEP-20  
-0x2a1581bcbd2dc64b9d0f494c636d1d5dacb898e6  
+<kbd>0x2a1581bcbd2dc64b9d0f494c636d1d5dacb898e6</kbd>    
 
 ETHEREUM  
-0x963798c6219b4df6442192be1c89a8b852cc4830  
+<kbd>0x963798c6219b4df6442192be1c89a8b852cc4830</kbd>    
 
 POLYGON  
-0x8051a1cf7a3b41221d723f7eae77d59d14fb275b  
+<kbd>0x8051a1cf7a3b41221d723f7eae77d59d14fb275b</kbd>    
 
 TON  
-EQBetln-nWakoK3LaTOn8l8oqnhNZgbVMHq_neSPPA6tS6nS  
+<kbd>EQBetln-nWakoK3LaTOn8l8oqnhNZgbVMHq_neSPPA6tS6nS</kbd>    
 
