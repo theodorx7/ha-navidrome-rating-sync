@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://github.com/theodorx7/ha-navidrome-rating-sync">
-    <img src="opensonic-rating-sync/logo.png" alt="Logo" width="100" style="vertical-align: middle; margin-right: 15px;">
+    <img src="opensonic-rating-sync/logo.png" alt="Logo" width="150" style="vertical-align: middle; margin-right: 15px;">
   </a>
   <h1 style="display: inline-block; vertical-align: middle; margin: 0;">
     Home Assistant App: Navidrome Rating Sync
