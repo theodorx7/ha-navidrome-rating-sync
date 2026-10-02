@@ -193,6 +193,9 @@ EXAMPLE: In "Navidrome → Files" mode, you change a rating in a file from 3 to 
 
 - Simultaneous changes on both sides: If you changed a rating in both the file and on the server since the last run, the next one-way sync will overwrite the receiving side with the rating from the source.
 
+- Disabling and re-enabling rating/like sync causes the source to overwrite the destination.
+EXAMPLE: In "Navidrome → Files" one-way mode, suppose you turn off rating sync (leaving only like sync active) and change a rating in a local file from 3 to 5. When you re-enable rating sync, the server's (source) rating will overwrite the "5" in the file—just like during a clean initial sync with a fresh database. The same rule applies to likes.
+
 
 
 ### Concurrency Protection
