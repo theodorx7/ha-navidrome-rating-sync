@@ -45,10 +45,10 @@ class SyncAgent:
 
     def _track_label(self, song, file_path=None):
         """Formats a string as: Artist - Title | Filename"""
-        artist = song.artist or ""
-        title = song.title or "<untitled>"
+        artist = getattr(song, "artist", None) or ""
+        title = getattr(song, "title", None) or "<untitled>"
         artist_title = f"{artist} - {title}" if artist else title
-        name = os.path.basename(file_path) if file_path else song.path or "<path missing>"
+        name = os.path.basename(file_path) if file_path else getattr(song, "path", None) or "<path missing>"
         return f"{artist_title} | {name}"
 
     def run_sync(self):
