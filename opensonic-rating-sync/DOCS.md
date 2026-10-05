@@ -55,7 +55,6 @@ Audio file tags do not store the date a rating was applied or changed. Navidrome
 
 
 ## Requirements
-- A Home Assistant installation with Supervisor (tested on HAOS).
 - Both the [Navidrome](https://github.com/alexbelgium/hassio-addons/tree/master/navidrome) and Rating Sync add-ons must be installed on the same Home Assistant instance, and both must use the exact same paths to the audio files.
 - The music library must be accessible from Home Assistant via one of the following methods:
     - HAOS internal drive (the /media folder).
@@ -63,7 +62,7 @@ Audio file tags do not store the date a rating was applied or changed. Navidrome
     - Network attached storage (SMB) — [how to connect in Home Assistant](https://www.home-assistant.io/common-tasks/os/#network-storage)
 - When a rating tag is modified in a file, its `mtime` (file modification date) must be updated.
 
-The app has only been tested with Navidrome v0.63.2. In theory, synchronization should work with other Subsonic servers since it uses the standard API (py-opensonic for the server library, mutagen for file tags).
+The app has only been tested with Navidrome. In theory, synchronization should work with other Subsonic servers since it uses the standard API (py-opensonic for the server library, mutagen for file tags).
 
 
 
