@@ -10,25 +10,23 @@
 An application for automatically synchronizing 1-5 star ratings and likes between audio files and a Navidrome server (Subsonic/OpenSubsonic API).
 
 ## Features
-- Sync modes:
+- Synchronization modes:
   - Two-way (merge)
   - One-way: Files → Navidrome / Navidrome → Files.
- 
-- Supported formats: FLAC, OGG, Opus, MP3, AIFF, WAV (ID3v2.4), APE, WavPack (APEv2), M4A (AAC/ALAC), WMA. Other formats are skipped without any log messages.
 
-- Compatible with MusicBee likes (the `LOVE RATING` tag).
+- Compatibility with MusicBee likes (LOVE RATING tag).
 
-- Flexible scheduling: run on an interval, daily at a specific time, or manually via Home Assistant (dashboard button / automation).
- 
-- Dry Run mode: preview planned changes in the logs without physically writing to audio files or the server.
+- Supported formats: FLAC, OGG, Opus, MP3, AIFF, WAV (ID3v2.4), APE, WavPack (APEv2), M4A (AAC/ALAC), WMA. Other formats are skipped without generating log messages.
 
-- Atomic writes (optional): Copy-Save-Replace mode protects audio files from corruption during simultaneous writes by multiple users/processes if your media library is on network storage (SMB/NFS). Atomic writes are disabled by default to prevent SSD wear.
+- Flexible scheduling: run at set intervals, daily at a specific time, or manually via Home Assistant (button / automation).
 
-- Crash resilience: Changes are flushed directly to disk (fsync) without lingering in the system buffer, minimizing data loss during unexpected power cuts.
+- Dry Run mode: preview planned changes in the logs without making physical writes to the audio files or the server.
 
-- Independent processing of ratings and likes: you can choose to sync only likes or only ratings. If both are enabled, only the changed data is updated (e.g., changing a like won't rewrite the rating tag in the file).
+- Deletion of low-rated tracks (optional): tracks with a 1★ or 0.5★ rating are deleted from the disk.
 
-- Fault tolerance: network errors or server unavailability will not cause the app to crash or restart—synchronization will simply resume on its next scheduled run.
+- Atomic writes (optional): The Copy-Save-Replace mode protects audio files from corruption during simultaneous writes by multiple users/processes when the media library is accessed over a network (SMB/NFS). Atomic writing is disabled by default to prevent SSD wear.
+
+- Independent processing of ratings and likes: you can choose to sync only likes or only ratings. If both options are enabled, only the modified data is updated; for example, changing a like will not overwrite the rating tag in the file.
 
 
 
@@ -110,6 +108,17 @@ icon: mdi:sync-circle
 
 
 
+## ⚠️ Deletion of low-rated tracks (optional)
+When this option is enabled, if a track is rated 1★ or 0.5★, the audio file will be deleted from the disk.
+
+- Files are deleted **permanently**, bypassing the trash/recycle bin.
+- All deletions are logged in the `deleted_by_rating_sync.log` file at the root of the media library.
+- Test this option in Dry Run mode before enabling it—planned deletions will be displayed in the log.
+- Works in any synchronization mode. Exception: if rating sync is disabled, files are deleted based solely on the server rating (tag ratings are ignored).
+- Files in unsupported formats are also deleted if the track is rated 1 star on the server.
+
+
+
 ## ⚠️ Important Notes
 - **Absolute paths:** Tracks on the server are matched with files strictly by their absolute path. If the "Report Real Path" option is not enabled in Navidrome, the sync will fail and log an error. 
 
@@ -124,6 +133,7 @@ icon: mdi:sync-circle
 - **Only known tracks are processed:** Files that are not yet in the Navidrome database (not scanned by the server) are ignored by the app.
 
 - **Moving or renaming files:** The app finds tracks based on the path provided by the server. If you move or rename files, rescan the library in Navidrome first (the existing rating data in the files and on the server will not be lost).
+
 
 
 ### Limitations
@@ -193,6 +203,7 @@ To delete the database, uninstall the add-on with the "Also remove app data" opt
 | Error processing a single track (permission denied, corrupted file) | The error is logged, and processing continues for the remaining files. |
 | Failed disk write | The track's state in the add-on's database is not updated—a write attempt will be retried in the next sync loop. |
 | Subsonic server is unavailable | The sync cycle is skipped, and a retry is performed on the next scheduled run (if configured). |
+| Failed to delete a low-rated file | The error is logged, and deletion will be reattempted during the next sync cycle. |
 
 
 <br/>
