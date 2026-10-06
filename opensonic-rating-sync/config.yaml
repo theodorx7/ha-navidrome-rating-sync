@@ -1,5 +1,5 @@
 name: "Navidrome Rating Sync"
-version: "1.0.1"
+version: "1.1.0"
 slug: "navidrome-rating-sync"
 description: "Syncing 5-star ratings and favorites (MusicBee LOVE RATING) between audio files and Navidrome. Supported sync modes: two-way, one-way (Files → Navidrome / Navidrome → Files)."
 url: "https://github.com/theodorx7/ha-navidrome-rating-sync"
@@ -30,6 +30,7 @@ options:
   sync_ratings: true
   sync_likes: true
   atomic_save: false
+  delete_low_rated: false
   debug: false
 schema:
   server_protocol: list(https|http)
@@ -47,5 +48,6 @@ schema:
   sync_ratings: bool
   sync_likes: bool
   atomic_save: bool
+  delete_low_rated: bool
   debug: bool
   
