@@ -39,7 +39,7 @@ def upsert_track_state(song_id: str, file_path: str, mtime_ns: int,
                        s_starred: int, s_rating: int,
                        f_rate_mtime: float, s_rate_mtime: float,
                        f_star_mtime: float, s_star_mtime: float):
-    # DATA NORMALIZATION BEFORE WRITING (NO "None" IN DB)
+    # Data normalization before writing (no "None" in DB)
     f_starred = int(f_starred) if f_starred is not None else 0
     f_rating = int(f_rating) if f_rating is not None else 0
     s_starred = int(s_starred) if s_starred is not None else 0
@@ -58,6 +58,10 @@ def upsert_track_state(song_id: str, file_path: str, mtime_ns: int,
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     """, (song_id, file_path, mtime_ns, f_starred, f_rating, s_starred, s_rating,
           f_rate_mtime, s_rate_mtime, f_star_mtime, s_star_mtime))
+    _conn.commit()
+
+def delete_track_state(song_id: str):
+    _conn.execute("DELETE FROM tracks_state WHERE song_id = ?", (song_id,))
     _conn.commit()
 
 def get_meta(key: str):
