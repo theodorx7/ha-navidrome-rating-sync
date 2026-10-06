@@ -52,8 +52,12 @@ configuration:
     description: >-
       Simulates synchronization without saving data. All planned changes are only output to the log. Use for the first run or to test sync settings.
   atomic_save:
-    name: Atomic file saving (tag saving)
+    name: Atomic file writing when saving tags
     description: >-
       Protects audio files from corruption during parallel writing by different programs and failures (unstable network/power outage). Recommended for network storage (SMB/NFS). Disabled by default to save SSD lifespan.
+  delete_low_rated:
+    name: Delete low-rated tracks
+    description: >-
+      Permanently deletes audio files from the disk if rated 1★ or 0.5★. This works regardless of the sync direction. If rating sync is disabled, deletion is based solely on server ratings (embedded file ratings are ignored).
   debug:
     name: Debug logging
