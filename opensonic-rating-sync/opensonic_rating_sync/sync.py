@@ -3,7 +3,7 @@ import logging
 import math
 import time
 import datetime
-from .database import get_track_state, upsert_track_state, get_meta, set_meta, reset_cache
+from .database import get_track_state, upsert_track_state, get_meta, set_meta, reset_cache, delete_track_state
 from . import ratings
 import libopensonic
 
@@ -13,6 +13,8 @@ class SyncAgent:
     def __init__(self, config):
         self.config = config
         self.sync_mode = config['sync_mode']
+        self.deleted_count = 0
+        self._library_root = None
         
         host = config['server_host'].strip().lower()
         if host.startswith('https://'):
@@ -69,6 +71,14 @@ class SyncAgent:
         server_songs = self._fetch_all_server_songs()
         logger.info(f"Found tracks on server: {len(server_songs)}")
 
+        self._library_root = None
+        if self.config['delete_low_rated'] and server_songs:
+            try:
+                self._library_root = os.path.commonpath(
+                    [os.path.dirname(s.path) for s in server_songs if getattr(s, 'path', None)])
+            except ValueError:
+                logger.debug("Deletion log disabled: server returned inconsistent paths.")
+
         disk_updates = 0
         server_updates = 0
         processed_count = 0
@@ -99,9 +109,13 @@ class SyncAgent:
         if self.config['dry_run']:
             logger.info(f"      [DRY-RUN] Planned updates on DISK: {disk_updates}")
             logger.info(f"      [DRY-RUN] Planned updates on SERVER: {server_updates}")
+            if self.config['delete_low_rated']:
+                logger.info(f"      [DRY-RUN] Planned deletions: {self.deleted_count}")
         else:
             logger.info(f"      Files updated on DISK: {disk_updates}")
             logger.info(f"      Tracks updated on SERVER: {server_updates}")
+            if self.config['delete_low_rated']:
+                logger.info(f"      Files deleted: {self.deleted_count}")
         logger.info(f"      Execution time: {formatted_time}")
 
         self.conn.cleanup()
@@ -321,6 +335,45 @@ class SyncAgent:
             s_star_mtime=actual_s_star_mtime if sync_likes else db_state['server_starred_mtime']
         )
     
+    def _delete_low_rated(self, song, song_id, file_path, reason):
+        db_exists = get_track_state(song_id) is not None
+        file_exists = os.path.exists(file_path)
+        if not db_exists and not file_exists:
+            return False, False  # already deleted on a previous cycle; the server has not rescanned yet
+
+        prefix = "[DRY-RUN] " if self.config['dry_run'] else ""
+        header_str = f"{prefix}ID {song_id} — "
+        indent = " " * len(header_str)
+        logger.info(f"{header_str}{self._track_label(song, file_path)}")
+        target = "File" if file_exists else "DB state (file already missing)"
+        logger.info(f"{indent}❌ Delete {target} — {reason}")
+
+        if self.config['dry_run']:
+            self.deleted_count += 1
+            return False, False
+
+        # DB row goes first: if the file removal fails, the next cycle re-detects the low rating and retries
+        delete_track_state(song_id)
+        if file_exists:
+            try:
+                os.remove(file_path)
+            except OSError as e:
+                logger.error(f"{indent}Failed to delete file: {file_path}: {e}")
+                return False, False
+            self._append_deletion_log(file_path)
+        self.deleted_count += 1
+        return False, False
+
+    def _append_deletion_log(self, file_path):
+        if not self._library_root:
+            return
+        try:
+            log_path = os.path.join(self._library_root, "deleted_by_rating_sync.log")
+            with open(log_path, "a", encoding="utf-8") as fh:
+                fh.write(f"{datetime.datetime.now():%d.%m.%Y}: {file_path}\n")
+        except OSError as e:
+            logger.error(f"Failed to write deletion log: {e}")
+
     def _process_song(self, song):
         song_id = song.id
         # Read the 'starred' status directly from the search3 response (like the rating), without a separate list
@@ -350,6 +403,11 @@ class SyncAgent:
             logger.error("Received relative path from server. Enable absolute paths on the server for client 'Rating Sync Agent [Python]'.")
             logger.error("If you are using Navidrome: in the menu, open the 'Players' section ---> Find and open the client settings named 'Rating Sync Agent [Python]' ---> Enable the 'Report Real Path' option ---> Click SAVE")
             raise RuntimeError("Server returns relative paths instead of absolute.")
+
+        # Optional deletion of low-rated tracks (independent of the sync mode): 1★ on the server.
+        if self.config['delete_low_rated'] and srv_rating == 1:
+            return self._delete_low_rated(song, song_id, file_path, "Low rating: 1★ (server)")
+
         if not ratings.is_supported_file(file_path):
             return False, False
 
@@ -382,6 +440,11 @@ class SyncAgent:
         # Normalize None to 0 (if there are no tags at all, mutagen might return None)
         f_rating_internal = f_rating_internal if f_rating_internal is not None else 0
         f_starred = f_starred if f_starred is not None else 0
+
+        # Optional deletion of low-rated tracks: 0.5★/1★ in the file tags (requires sync_ratings
+        # to be on, otherwise the file value is frozen/stale and must not drive a deletion).
+        if self.config['delete_low_rated'] and self.config['sync_ratings'] and f_rating_internal in (1, 2):
+            return self._delete_low_rated(song, song_id, file_path, f"Low rating: {f_rating_internal / 2:g}★ (file)")
 
         # --- LWW (LAST-WRITE-WINS) LOGIC ---
         now_time = time.time()
