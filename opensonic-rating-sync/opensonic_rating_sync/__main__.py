@@ -88,6 +88,7 @@ def load_config() -> dict:
         "sync_ratings":         bool(raw["sync_ratings"]),
         "sync_likes":           bool(raw["sync_likes"]),
         "atomic_save":          bool(raw["atomic_save"]),
+        "delete_low_rated":     bool(raw.get("delete_low_rated", False)),
         "debug":                bool(raw["debug"]),
     }
 
