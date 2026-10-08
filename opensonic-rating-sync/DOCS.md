@@ -7,28 +7,6 @@
 [English](https://github.com/theodorx7/ha-navidrome-rating-sync/blob/main/README.md) | [Russian](https://github.com/theodorx7/ha-navidrome-rating-sync/blob/main/README_RU.md)
 
 
-An application for automatically synchronizing 1-5 star ratings and likes between audio files and a Navidrome server (Subsonic/OpenSubsonic API).
-
-## Features
-- Synchronization modes:
-  - Two-way (merge)
-  - One-way: Files → Navidrome / Navidrome → Files.
-
-- Compatibility with MusicBee likes (LOVE RATING tag).
-
-- Supported formats: FLAC, OGG, Opus, MP3, AIFF, WAV (ID3v2.4), APE, WavPack (APEv2), M4A (AAC/ALAC), WMA. Other formats are skipped without generating log messages.
-
-- Flexible scheduling: run at set intervals, daily at a specific time, or manually via Home Assistant (button / automation).
-
-- Dry Run mode: preview planned changes in the logs without making physical writes to the audio files or the server.
-
-- Deletion of low-rated tracks (optional): tracks with a 1★ or 0.5★ rating are deleted from the disk.
-
-- Atomic writes (optional): The Copy-Save-Replace mode protects audio files from corruption during simultaneous writes by multiple users/processes when the media library is accessed over a network (SMB/NFS). Atomic writing is disabled by default to prevent SSD wear.
-
-- Independent processing of ratings and likes: you can choose to sync only likes or only ratings. If both options are enabled, only the modified data is updated; for example, changing a like will not overwrite the rating tag in the file.
-
-
 
 ### Main Use Cases 
 - One-time rating migration:
