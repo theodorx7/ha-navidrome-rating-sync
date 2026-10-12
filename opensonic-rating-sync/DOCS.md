@@ -9,7 +9,7 @@
 
 
 ### Main Use Cases 
-- One-time rating migration:
+- One-time transfer or backup of ratings:
 Navidrome cannot import ratings from files into its database, nor does it write ratings from its database back into file tags. If you need to move ratings from one side to the other just once, use the one-way sync mode.
 
 - Regular synchronization:
